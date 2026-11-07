@@ -1,0 +1,13 @@
+#!/bin/bash
+# Stands in for GitHub in a network-less container: serves the release built by entry_test.sh.
+out=; url=; fmt=; fail=0
+while [ $# -gt 0 ]; do case "$1" in
+  -o) out=$2; shift 2;; -w) fmt=$2; shift 2;; --max-time|--retry|-H|-A|--connect-timeout) shift 2;;
+  -*f*) fail=1; shift;; -*) shift;; *) url=$1; shift;; esac; done
+name=${url##*/}; src=/tmp/release/$name
+case "$name" in *-binary.tar.gz) v=${name#cua-driver-rs-}; v=${v%%-*}; src=/tmp/release/v$v.tar.gz;; esac
+if [ -f "$src" ]; then
+  if [ -n "$out" ]; then cp "$src" "$out"; else cat "$src"; fi; [ -n "$fmt" ] && printf 200; exit 0
+fi
+[ -n "$fmt" ] && printf 404
+[ "$fail" = 1 ] && exit 22; exit 0
