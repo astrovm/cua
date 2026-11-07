@@ -636,8 +636,9 @@ async fn read_image(
 
 /// The whole desktop, every output included, in logical pixels. KWin answers
 /// directly, so unlike the portal this has no request to lose and no prompt, and
-/// a Deny saved in the portal doesn't apply. KWin 6.7 and older refuse an
-/// executable without the ScreenShot2 grant; KWin 6.8 has no such check.
+/// it doesn't consult a Deny saved in the portal: the caller checks the switch.
+/// KWin 6.7 and older refuse an executable without the ScreenShot2 grant; KWin
+/// 6.8 has no such check.
 pub fn capture_workspace() -> anyhow::Result<Vec<u8>> {
     run(async move {
         let connection = zbus::Connection::session().await?;

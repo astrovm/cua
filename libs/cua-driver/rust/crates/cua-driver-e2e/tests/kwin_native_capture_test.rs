@@ -330,7 +330,7 @@ fn same_pid_same_title_windows_capture_exact_surfaces_without_a_helper() {
     writeln!(input, "close-first").unwrap();
     std::thread::sleep(Duration::from_millis(300));
     let closed = driver.call("get_window_state", json!({
-        "pid": pid, "window_id": windows[first]["window_id"], "include_accessibility_tree": false,
+        "pid": pid, "window_id": windows[first]["window_id"], "include_accessibility_tree": true,
     }));
     assert!(capture_unproven(&closed), "{}", closed.text());
     let remaining = driver.call("list_windows", json!({"pid": pid}));
@@ -365,7 +365,7 @@ fn same_pid_same_title_windows_capture_exact_surfaces_without_a_helper() {
     let off = driver.call(
         "get_window_state",
         json!({
-            "pid": pid, "window_id": resized["window_id"], "include_accessibility_tree": false,
+            "pid": pid, "window_id": resized["window_id"], "include_accessibility_tree": true,
         }),
     );
     assert!(capture_unproven(&off), "{}", off.text());

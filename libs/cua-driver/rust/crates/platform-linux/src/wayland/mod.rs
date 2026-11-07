@@ -1447,9 +1447,10 @@ pub fn screenshot_display_dispatch() -> anyhow::Result<Vec<u8>> {
         ) {
             return result;
         }
-        // Tier 2: KWin answers directly when it lets this executable call
-        // ScreenShot2: every output, no portal request to wait on.
-        if kwin_capture::may_be_session() {
+        // Tier 2: KWin answers directly when the operator's switch is on and it
+        // lets this executable call ScreenShot2: every output, no portal request
+        // to wait on. The switch keeps a Deny saved in the portal in force.
+        if kwin_capture::may_be_session() && kwin_access::allowed() {
             match kwin_capture::capture_workspace() {
                 Ok(bytes) => return Ok(bytes),
                 Err(e) => tracing::debug!("KWin workspace capture unavailable: {e:#}"),

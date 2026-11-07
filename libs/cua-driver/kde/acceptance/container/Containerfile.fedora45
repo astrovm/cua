@@ -1,0 +1,14 @@
+# Same checks as Containerfile, on Fedora 45: KWin 6.8, newer than the Ubuntu image.
+FROM registry.fedoraproject.org/fedora:45
+RUN dnf install -y --setopt=install_weak_deps=False \
+    kwin plasma-workspace procps-ng kf6-kservice libkscreen xdg-desktop-portal xdg-desktop-portal-kde \
+    at-spi2-core at-spi2-atk dbus-daemon dbus-tools dbus-x11 glib2 fuse3 xorg-x11-server-Xwayland pipewire wireplumber \
+    mesa-dri-drivers mesa-libEGL mesa-libgbm mesa-vulkan-drivers mesa-libGL libglvnd-gles qt6-qtwayland xcb-util-cursor \
+    python3-gobject gobject-introspection gtk3 gtk4 python3-dbus python3-pillow python3-pyqt6 libcap dejavu-sans-fonts \
+    pipewire-libs libei libxkbcommon dbus-libs
+# What Chrome needs. The keys check mounts a Chrome install from the host when asked to.
+RUN dnf install -y --setopt=install_weak_deps=False nss nspr atk alsa-lib cups-libs pango cairo libXcomposite libXdamage libXrandr \
+    libdrm vulkan-loader liberation-fonts
+RUN setcap -r /usr/bin/kwin_wayland; true
+COPY plasma-applications.menu /etc/xdg/menus/plasma-applications.menu
+COPY plasma-applications.menu /etc/xdg/menus/applications.menu

@@ -1,0 +1,11 @@
+# Builds cua-driver for Kubuntu 26.04 with nothing but podman on the host.
+FROM docker.io/library/ubuntu:26.04
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    ca-certificates curl git build-essential clang pkg-config cmake \
+    libdbus-1-dev libpipewire-0.3-dev libspa-0.2-dev libei-dev libxkbcommon-dev \
+    libx11-dev libxi-dev libxtst-dev libxext-dev libxrandr-dev libwayland-dev \
+    xkb-data xvfb xauth x11-utils xterm
+RUN curl -sSf https://sh.rustup.rs | sh -s -- -y --profile minimal --default-toolchain 1.97.1
+ENV PATH=/root/.cargo/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+ENV CARGO_TARGET_DIR=/src/libs/cua-driver/rust/target/agent
+WORKDIR /src/libs/cua-driver/rust
