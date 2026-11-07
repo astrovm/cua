@@ -110,6 +110,59 @@ mod pid_read_tests {
     }
 }
 
+/// The window a pid-only read means: on KWin the pid's topmost window, then its
+/// open popup menu, then what's listed for it. A KWin handle is not an X11 id,
+/// and an X11 popup id would be refused as not belonging to the pid: popups are
+/// only read back on an X11 session.
+fn pid_only_window(
+    kwin: impl FnOnce() -> Option<u64>,
+    popup: impl FnOnce() -> Option<u64>,
+    listed: impl FnOnce() -> PidRead,
+) -> PidRead {
+    kwin()
+        .or_else(popup)
+        .map(PidRead::Window)
+        .unwrap_or_else(listed)
+}
+
+/// The pid's topmost window when the KWin adapter listed it. Other compositors,
+/// and a KWin that doesn't let this executable enumerate, keep the existing choice.
+fn kwin_topmost_window(pid: u32) -> Option<u64> {
+    if !crate::wayland::is_wayland() || !crate::wayland::kwin_capture::may_be_session() {
+        return None;
+    }
+    super::impl_::pid_fallback_window_resolver()(i64::from(pid))
+        .filter(|window| crate::wayland::kwin_capture::knows_window(*window))
+}
+
+#[cfg(test)]
+mod pid_only_window_tests {
+    use super::{pid_only_window, PidRead};
+
+    #[test]
+    fn kwin_answers_first_and_every_other_compositor_keeps_its_choice() {
+        let unreached = || -> Option<u64> { panic!("KWin already answered") };
+        let unlisted = || -> PidRead { panic!("an earlier choice answered") };
+        assert_eq!(
+            pid_only_window(|| Some(1), unreached, unlisted),
+            PidRead::Window(1)
+        );
+        // Sway, GNOME and the rest: no KWin answer, so the popup, then the list, as before.
+        assert_eq!(
+            pid_only_window(|| None, || Some(2), unlisted),
+            PidRead::Window(2)
+        );
+        assert_eq!(
+            pid_only_window(|| None, || None, || PidRead::Window(3)),
+            PidRead::Window(3)
+        );
+        assert_eq!(
+            pid_only_window(|| None, || None, || PidRead::NotFound),
+            PidRead::NotFound
+        );
+    }
+}
+
 #[cfg(test)]
 mod megapixel_cap_tests {
     use super::{megapixel_long_edge_cap, WINDOW_SCREENSHOT_MAX_PIXELS};
@@ -408,27 +461,32 @@ impl Tool for GetWindowStateTool {
             Ok(v) => v,
             Err(e) => return e,
         };
-        // `window_id` omitted: the open popup menu of this pid when one is
-        // mapped (a context menu the caller wants to read), else the pid's
-        // focused / dialog / active / largest window.
+        // `window_id` omitted: on KWin the pid's topmost window, else the open
+        // popup menu of this pid when one is mapped (a context menu the caller
+        // wants to read), else its focused / dialog / active / largest window.
         let xid = match args.opt_u64("window_id") {
             Some(v) => v,
             None => {
                 let chosen = tokio::task::spawn_blocking(move || {
-                    if let Some(popup) = crate::input::mapped_popup_windows()
-                        .into_iter()
-                        .rev()
-                        .find(|p| p.pid == Some(pid))
-                    {
-                        return PidRead::Window(popup.window);
-                    }
-                    super::impl_::pid_fallback_window_resolver()(i64::from(pid))
-                        .map(PidRead::Window)
-                        .unwrap_or_else(|| {
-                            listed_pid_window(super::impl_::pid_window_target_candidates(
-                                i64::from(pid),
-                            ))
-                        })
+                    pid_only_window(
+                        || kwin_topmost_window(pid),
+                        || {
+                            crate::input::mapped_popup_windows()
+                                .into_iter()
+                                .rev()
+                                .find(|p| p.pid == Some(pid))
+                                .map(|p| p.window)
+                        },
+                        || {
+                            super::impl_::pid_fallback_window_resolver()(i64::from(pid))
+                                .map(PidRead::Window)
+                                .unwrap_or_else(|| {
+                                    listed_pid_window(super::impl_::pid_window_target_candidates(
+                                        i64::from(pid),
+                                    ))
+                                })
+                        },
+                    )
                 })
                 .await
                 .unwrap_or(PidRead::NotFound);
