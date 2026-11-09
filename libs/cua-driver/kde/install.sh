@@ -16,6 +16,7 @@ refresh() { kbuildsycoca6 >/dev/null 2>&1 || true; }
 
 if [ "${1:-}" = "--uninstall" ]; then
     [ -f "$DIR/previous" ] || { echo "Nothing to undo: $DIR/previous is missing." >&2; exit 1; }
+    "$LINK" kwin-capture off >/dev/null 2>&1 || true
     ln -sfn "$(cat "$DIR/previous")" "$LINK"
     rm -f "$ENTRY" "$BIN" "$DIR/cua-cursor-theme" "$DIR/previous"
     refresh
@@ -61,5 +62,7 @@ X-KDE-DBUS-Restricted-Interfaces=org.kde.KWin.ScreenShot2
 EOF
 refresh
 ln -sfn "$BIN" "$LINK"
+# Exact window capture is off until the operator turns it on. Running this script is that choice.
+"$LINK" kwin-capture on
 echo "Installed $("$LINK" --version) at $BIN"
 echo "Restart your agents: running ones keep the old build."

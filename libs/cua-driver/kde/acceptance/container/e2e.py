@@ -5,6 +5,10 @@ import gi
 gi.require_version("Atspi","2.0")
 from gi.repository import Atspi
 MODE,LABEL,BIN=sys.argv[1:4]; R=os.environ["SCRATCH_DIR"]; SOCK=R+"/d.sock"; os.chdir("/ctr")
+def switch(*a):
+    r=sp.run([BIN,"kwin-capture",*a],capture_output=True,text=True,timeout=60)
+    print(LABEL,"kwin-capture",*a,"rc",r.returncode,(r.stdout+r.stderr).strip()[:220].replace(chr(10)," / "),flush=True)
+if os.environ.get("KWIN_SWITCH"): switch(*os.environ["KWIN_SWITCH"].split())
 D=sp.Popen([BIN,"serve","--socket",SOCK,"--pid-file",R+"/d.pid"],stdout=open(R+"/d.log","w"),stderr=sp.STDOUT)
 for _ in range(300):
     if os.path.exists(SOCK): break
@@ -197,6 +201,78 @@ b=QtWidgets.QPushButton("Hit",w); b.setAccessibleName("Hit"+name); b.move(20,20)
         check("raw window-scoped key and pointer refused, nothing delivered",got=="" and "foreground_unavailable" in str(r1.get("_raw")) and r2.get("code")=="background_unavailable",(str(r1.get("_raw"))[:40],r2.get("code"),repr(got)))
     print(f"{LABEL} RESULT {sum(ok)}/{len(ok)}",flush=True)
     A.terminate();Bw.terminate()
+elif MODE=="switch":
+    # The operator's switch against a running daemon: off, on, Deny, override, off again. No restart anywhere. Real permission checks.
+    import dbus
+    from PIL import Image
+    open(R+"/w.py","w").write('''import sys
+from PyQt6 import QtWidgets,QtGui
+name,color=sys.argv[1:3]
+class W(QtWidgets.QWidget):
+    def paintEvent(self,_): QtGui.QPainter(self).fillRect(self.rect(),QtGui.QColor(color))
+a=QtWidgets.QApplication(sys.argv); w=W(); w.setWindowTitle(name); w.resize(600,400); w.show(); a.exec()
+''')
+    kw=lambda *a: json.loads(sp.check_output(["python3","kw.py",*map(str,a)],timeout=8))
+    A=sp.Popen([sys.executable,R+"/w.py","CapA","#00ff00"],stdout=sp.DEVNULL,stderr=sp.DEVNULL); time.sleep(2)
+    Bw=sp.Popen([sys.executable,R+"/w.py","CapB","#ff0000"],stdout=sp.DEVNULL,stderr=sp.DEVNULL); time.sleep(2)
+    kw("frame","CapA",100,100,600,400); kw("frame","CapB",100,100,600,400); kw("activate","CapB"); time.sleep(.5)
+    ok=[]
+    def check(n,v,d=""):
+        ok.append(bool(v)); print(f"{LABEL} {'PASS' if v else 'FAIL'} {n} | {str(d)[:170]}",flush=True)
+    ENTRY=os.environ["XDG_DATA_HOME"]+"/applications/ai.cua.driver.desktop"
+    def lst():
+        l=call("list_windows",{"pid":A.pid}).get("windows") or [{}]; return l[0]
+    def isk(w): return w.get("z_index") is not None and w.get("bounds",{}).get("width")==round(kw("find","CapA")["frame"][2]) and w.get("bounds",{}).get("x")==round(kw("find","CapA")["frame"][0])
+    def shot(wid):
+        p=R+"/s.png"
+        if os.path.exists(p): os.remove(p)
+        s=call("get_window_state",{"pid":A.pid,"window_id":wid,"include_accessibility_tree":False,"screenshot_out_file":p})
+        if not os.path.exists(p): return None,str(s.get("_raw") or s.get("code") or s.get("screenshot_error") or s.get("degraded_reason") or list(s))[:130]
+        im=Image.open(p).convert("RGB"); return im.getpixel((im.size[0]-10,im.size[1]-10)),str(s.get("screenshot_frame_valid"))
+    green=lambda px: px and px[1]>200 and px[0]<60
+    w0=lst(); print(LABEL,"off window",w0,flush=True)
+    check("off: not on the KWin adapter",not isk(w0),{k:w0.get(k) for k in("window_id","z_index","bounds")})
+    px,d=shot(w0.get("window_id")); check("off: no exact capture of the covered window",not green(px),(px,d))
+    check("off: no entry written",not os.path.exists(ENTRY))
+    switch("status"); t0=time.monotonic(); switch("on"); on_ms=round((time.monotonic()-t0)*1e3)
+    check("on: entry written, or none needed",True,(os.path.exists(ENTRY),f"{on_ms}ms"))
+    tries=0; w=lst()
+    while not isk(w) and tries<40: tries+=1; time.sleep(.25); w=lst()
+    check("on: adapter answers without a restart",isk(w),f"{tries} extra list calls, {tries*.25}s; {w.get('window_id')}")
+    if isk(w):
+        kid=w["window_id"]; px,d=shot(kid); check("on: capture of the COVERED window is that window",green(px),(px,d))
+        f=call("bring_to_front",{"pid":A.pid,"window_id":kid}); time.sleep(.4); check("on: bring_to_front raises it",kw("find","CapA")["active"],str(f.get("_raw") or "ok")[:90]); kw("activate","CapB"); time.sleep(.3)
+        bus=dbus.SessionBus(); store=dbus.Interface(bus.get_object("org.freedesktop.impl.portal.PermissionStore","/org/freedesktop/impl/portal/PermissionStore"),"org.freedesktop.impl.portal.PermissionStore")
+        store.SetPermission("screenshot",True,"screenshot","",["no"]); time.sleep(1.3)
+        w2=lst(); check("Deny: adapter off on the next calls",not isk(w2),w2.get("window_id"))
+        px,d=shot(kid); check("Deny: old KWin id gives no capture",not green(px),(px,d)); switch("status")
+        switch("on","--override-portal-deny"); time.sleep(1.3); t=0; w3=lst()
+        while not isk(w3) and t<40: t+=1; time.sleep(.25); w3=lst()
+        check("override: back on",isk(w3),f"{t} extra list calls")
+        px,d=shot(w3.get("window_id")); check("override: captures the covered window despite Deny",green(px),(px,d))
+        store.DeletePermission("screenshot","screenshot","")
+        switch("off"); time.sleep(.1); w4=lst(); check("off again: adapter off on the next call",not isk(w4),w4.get("window_id"))
+        check("off again: entry removed",not os.path.exists(ENTRY))
+        px,d=shot(w3.get("window_id")); check("off again: old KWin id gives no capture",not green(px),(px,d))
+    print(f"{LABEL} RESULT {sum(ok)}/{len(ok)}",flush=True)
+    A.terminate();Bw.terminate()
+elif MODE=="typeswitch":
+    # Desktop typing with the capture switch off, on and off again, for what PR 6827's keystate rule does with no entry. Ground truth is the field.
+    open(R+"/w.py","w").write('''import sys
+from PyQt6 import QtWidgets
+a=QtWidgets.QApplication(sys.argv); e=QtWidgets.QLineEdit(); e.setWindowTitle("TypeW"); e.resize(500,60)
+e.textChanged.connect(lambda t:open(sys.argv[1],"w").write(t)); e.show(); e.setFocus(); a.exec()
+''')
+    kw=lambda *a: json.loads(sp.check_output(["python3","kw.py",*map(str,a)],timeout=8))
+    out=R+"/o.txt"; open(out,"w").close(); P=sp.Popen([sys.executable,R+"/w.py",out],stdout=sp.DEVNULL,stderr=sp.DEVNULL); time.sleep(2); kw("activate","TypeW"); time.sleep(.5)
+    def ty(tag):
+        for text in ("abc","123"):
+            open(out,"w").close(); kw("activate","TypeW"); time.sleep(.2)
+            before=open(out).read()
+            r=call("type_text",{"scope":"desktop","text":text}); time.sleep(1.2); got=open(out).read()
+            print(f"{LABEL} {tag} text={text!r} field={got!r} reply={str(r.get('code') or r.get('_raw') or r.get('effect'))[:170]}",flush=True)
+    ty("off"); switch("on"); time.sleep(1); ty("on"); switch("off"); time.sleep(1); ty("off-again")
+    P.terminate()
 elif MODE=="grantprobe":
     # Does KWin let an executable with no grant capture? Probed from plain python3 (no .desktop entry names it), then through the driver.
     import dbus
@@ -469,21 +545,31 @@ e.connect("changed",lambda x:open(sys.argv[1],"w").write(e.get_text())); w.show_
     out=R+"/o.txt"
     for tk,(code,env) in src.items():
         app=R+"/big"+tk+".py"; open(app,"w").write(code)
-        for n in (0,int(os.environ.get("BIG","6000"))):
+        for n in ((int(os.environ.get("BIG","6000")),) if os.environ.get("ONLYBIG") else (0,int(os.environ.get("BIG","6000")))):
             good=tot=0
-            for text in ("ñ🙂ab","日本語 🙂 end","✓ABC"):
+            for text in (os.environ["BIGTEXTS"].split("|") if os.environ.get("BIGTEXTS") else ("ñ🙂ab","日本語 🙂 end","✓ABC")):
                 open(out,"w").close(); p=sp.Popen([sys.executable,app,out,str(n)],env=dict(os.environ,**env),stdout=sp.DEVNULL,stderr=sp.DEVNULL); time.sleep(3+n/1000)
                 XD=sp.Popen([BIN,"serve","--socket",SX,"--pid-file",R+"/x.pid"],env=dict(XE,CUA_ATSPI_DEBUG="1"),stdout=open(R+"/x.log","w"),stderr=sp.STDOUT); time.sleep(1.5)
                 try:
                     wins=call("list_windows",{"pid":p.pid}).get("windows") or []
-                    t0=time.monotonic(); r=call("type_text",{"pid":p.pid,"window_id":wins[0]["window_id"],"text":text}) if wins else {"_raw":"no window"}; ms=round((time.monotonic()-t0)*1e3); time.sleep(.5)
+                    ROUTE=os.environ.get("ROUTE",""); extra={"delivery_mode":os.environ["DELIVERY"]} if os.environ.get("DELIVERY") else {}
+                    tok=None
+                    if ROUTE and wins:
+                        s=call("get_window_state",{"pid":p.pid,"window_id":wins[0]["window_id"],"query":"Probe","include_screenshot":False},to=120); import re as _re; m=_re.search(r'\[(\d+)\][^\n]*"Probe"',s.get("tree_markdown") or ""); tok=f'{s.get("snapshot_id")}:{m.group(1)}' if m else None
+                        if not tok: print(LABEL,tk,"no token",str(s)[:200],flush=True)
+                    t0=time.monotonic()
+                    if not wins: r={"_raw":"no window"}
+                    elif ROUTE=="setvalue": r=call("set_value",{"pid":p.pid,"window_id":wins[0]["window_id"],"element_token":tok,"value":text})
+                    elif ROUTE=="element": r=call("type_text",dict({"pid":p.pid,"window_id":wins[0]["window_id"],"element_token":tok,"text":text},**extra))
+                    else: r=call("type_text",dict({"pid":p.pid,"window_id":wins[0]["window_id"],"text":text},**extra))
+                    ms=round((time.monotonic()-t0)*1e3); time.sleep(.5)
                     got=open(out,encoding="utf-8",errors="replace").read(); tot+=1; good+=got==text
                     walk=[l for l in open(R+"/x.log",errors="replace").read().splitlines() if "truncation=" in l or "budget" in l]
                     print(f"{LABEL} {tk:5}labels={n} {text!r:17} got={got!r} {'exact' if got==text else 'WRONG'} {ms}ms effect={r.get('effect')} {str(r.get('code') or r.get('_raw') or '')[:60]} budget_spent={any('budget exhausted' in l for l in walk)}",flush=True)
                 finally:
                     p.terminate(); XD.terminate(); XD.wait(); time.sleep(.3)
                     if os.path.exists(SX): os.remove(SX)
-            print(f"{LABEL} {tk} labels={n}: {good}/{tot} exact",flush=True)
+            print(f"{LABEL} {tk} labels={n}: {good}/{tot} exact last={json.dumps(r,ensure_ascii=False)[:330]}",flush=True)
 elif MODE=="gtk3row":
     # The repo's own GTK3 catalog rows, against a driver that sees only XWayland. The test binary and fixture sit next to the driver.
     XE={k:v for k,v in os.environ.items() if os.environ.get("LANE")=="wayland" or k not in("WAYLAND_DISPLAY","CUA_DRIVER_RS_ENABLE_WAYLAND")}; XE.update({} if os.environ.get("LANE")=="wayland" else dict(XDG_SESSION_TYPE="x11",GDK_BACKEND="x11")); XE.update(CUA_TEST_DRIVER_BIN=BIN,HARNESS_GTK3_EXE=os.path.dirname(BIN)+"/main.py",CUA_TEST_WORKSPACE_ROOT=R,RUST_BACKTRACE="0")
