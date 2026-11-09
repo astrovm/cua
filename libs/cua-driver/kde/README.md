@@ -40,9 +40,9 @@ libs/cua-driver/kde/acceptance/run.sh speed  # latency through MCP
 
 ## Known limits
 
-- Raw input goes to the focused window. Bring the window to the front, then send
-  desktop input. Upstream refuses to bind raw input to a window on KWin because
-  focus can change between the check and the input.
+- Foreground input to a window needs the KWin helper (protocol 2) loaded, see
+  `libs/cua-driver/kwin-target-helper`. Without it, input aimed at a window is
+  refused. Background input on KWin is always refused.
 - Qt dropdown items can't be picked over accessibility. Click the dropdown, then
   press `Down` and `Return`.
 
