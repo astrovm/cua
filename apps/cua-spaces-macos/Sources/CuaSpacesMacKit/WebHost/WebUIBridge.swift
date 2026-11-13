@@ -108,7 +108,7 @@ final class WebUIBridge: NSObject, WKScriptMessageHandlerWithReply {
         "devices.revoke", "devices.confirmMachine", "devices.createPairingCode", "devices.pairingCodes",
         "devices.revokePairingCode", "teams.list", "storage.get", "storage.run",
         "notifications.list", "notifications.markAllRead", "notifications.markRead",
-        "telemetry.track", "telemetry.linkNotice", "telemetry.acknowledgeLinkNotice", "crashReporting.config", "spaces.usage", "spaces.windows", "stream.pip",
+        "telemetry.track", "telemetry.linkNotice", "telemetry.acknowledgeLinkNotice", "crashReporting.config", "spaces.usage", "spaces.reach", "spaces.windows", "stream.pip",
         // A Space's thumbnail (WebUIBridge+Thumbnails.swift).
         "spaces.thumbnail",
         // A Space's drop well: Send file… and dropped files (WebUIBridge+Files.swift).
@@ -956,9 +956,18 @@ final class WebUIBridge: NSObject, WKScriptMessageHandlerWithReply {
             guard let setup = model.agentSetup else { throw Failure.unsupported("Agent setup is not available in this build") }
             let signIn = (args["signIn"] as? Bool) ?? false
             do {
+                // `driver`: the Cua Driver this app carries goes in too, as one more part (setup's "Let agents use
+                // apps on this Mac" row). A build without one has no such part.
+                var driver: (embedded: EmbeddedDriver, entry: DriverConnect)?
+                if args["driver"] as? Bool == true { driver = await connectDriver() }
                 let out = try await setup.connectJson(agents: try strings(args, "agents"), signIn: signIn,
-                                                      skills: (args["skills"] as? Bool) ?? true, mcp: (args["mcp"] as? Bool) ?? true)
+                                                      skills: (args["skills"] as? Bool) ?? true, mcp: (args["mcp"] as? Bool) ?? true,
+                                                      driver: driver?.entry)
                 await model.reloadAgents()
+                // Written with both permissions on: a driver that isn't running yet starts, without holding the answer.
+                if let embedded = driver?.embedded, driver?.entry.permissionsGranted == true {
+                    Task { await self.startDriverIfNeeded(embedded) }
+                }
                 return try json(out)
             } catch let f as Failure { throw f }
             catch { throw Failure(code: "failed", message: LiveSpacesBackend.words(error)) }

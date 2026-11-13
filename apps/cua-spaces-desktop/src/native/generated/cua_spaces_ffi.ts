@@ -38776,6 +38776,62 @@ const FfiConverterTypeAppRememberedChoice = (() => {
     return new FFIConverter();
 })();
 
+export type AppRemoteWindowOrigin = {
+    /**
+     * The origin Space's id.
+     */
+    spaceId: string,
+    /**
+     * Its name.
+     */
+    name: string,
+    /**
+     * Its OS (`macos`, `linux`, `windows`), when known.
+     */
+    os: string
+}
+
+/**
+ * Generated factory for {@link AppRemoteWindowOrigin} record objects.
+ */
+export const AppRemoteWindowOrigin = (() => {
+    const defaults = () => ({
+    });
+    const create = (() => {
+        return uniffiCreateRecord<AppRemoteWindowOrigin, ReturnType<typeof defaults>>(defaults);
+    })();
+    return Object.freeze({
+        create,
+        new: create,
+        defaults: () => Object.freeze(defaults()) as Partial<AppRemoteWindowOrigin>,
+    });
+})();
+
+const FfiConverterTypeAppRemoteWindowOrigin = (() => {
+    type TypeName = AppRemoteWindowOrigin;
+    class FFIConverter extends AbstractFfiConverterByteArray<TypeName> {
+        read(from: RustBuffer): TypeName {
+            return {
+                spaceId: FfiConverterString.read(from),
+                name: FfiConverterString.read(from),
+                os: FfiConverterString.read(from)
+            };
+        }
+        write(value: TypeName, into: RustBuffer): void {
+            FfiConverterString.write(value.spaceId, into);
+            FfiConverterString.write(value.name, into);
+            FfiConverterString.write(value.os, into);
+        }
+        allocationSize(value: TypeName): number {
+            return FfiConverterString.allocationSize(value.spaceId) +
+             FfiConverterString.allocationSize(value.name) +
+             FfiConverterString.allocationSize(value.os);
+
+        }
+    };
+    return new FFIConverter();
+})();
+
 export type AppRemoteWindow = {
     /**
      * Stable key.
@@ -38813,7 +38869,12 @@ export type AppRemoteWindow = {
      * The owning process (what the SDK's `Space.app_icon` looks a macOS
      * app up by), when the window list reports one.
      */
-    pid?: number
+    pid?: number,
+    /**
+     * The Space the picture comes from, when another Space shows this
+     * window here (`stream_space_window`); absent on a Space's own windows.
+     */
+    origin?: AppRemoteWindowOrigin
 }
 
 /**
@@ -38845,7 +38906,8 @@ const FfiConverterTypeAppRemoteWindow = (() => {
                 targetEpoch: FfiConverterUInt64.read(from),
                 widthPx: FfiConverterOptionalUInt32.read(from),
                 heightPx: FfiConverterOptionalUInt32.read(from),
-                pid: FfiConverterOptionalUInt32.read(from)
+                pid: FfiConverterOptionalUInt32.read(from),
+                origin: FfiConverterOptionalTypeAppRemoteWindowOrigin.read(from)
             };
         }
         write(value: TypeName, into: RustBuffer): void {
@@ -38858,6 +38920,7 @@ const FfiConverterTypeAppRemoteWindow = (() => {
             FfiConverterOptionalUInt32.write(value.widthPx, into);
             FfiConverterOptionalUInt32.write(value.heightPx, into);
             FfiConverterOptionalUInt32.write(value.pid, into);
+            FfiConverterOptionalTypeAppRemoteWindowOrigin.write(value.origin, into);
         }
         allocationSize(value: TypeName): number {
             return FfiConverterString.allocationSize(value.id) +
@@ -38868,7 +38931,8 @@ const FfiConverterTypeAppRemoteWindow = (() => {
              FfiConverterUInt64.allocationSize(value.targetEpoch) +
              FfiConverterOptionalUInt32.allocationSize(value.widthPx) +
              FfiConverterOptionalUInt32.allocationSize(value.heightPx) +
-             FfiConverterOptionalUInt32.allocationSize(value.pid);
+             FfiConverterOptionalUInt32.allocationSize(value.pid) +
+             FfiConverterOptionalTypeAppRemoteWindowOrigin.allocationSize(value.origin);
 
         }
     };
@@ -40948,7 +41012,18 @@ export type AppSettings = {
      * one is a connect, which shows its app again
      * ([`crate::agent_menu::sync`]).
      */
-    agentMenuSeen: Array<string>
+    agentMenuSeen: Array<string>,
+    /**
+     * Settings, General, "When I close the window": closing the main
+     * window leaves Cua Spaces and its background service running (on, the
+     * default); off, it quits Cua Spaces, as Quit does.
+     */
+    closeWindowKeepsRunning: boolean,
+    /**
+     * "Don't show this again" on the notice that Cua Spaces keeps running
+     * when the window closes, or the Settings switch turned off.
+     */
+    closeNoticeOff: boolean
 }
 
 /**
@@ -40991,7 +41066,9 @@ const FfiConverterTypeAppSettings = (() => {
                 tips: FfiConverterTypeAppTipsState.read(from),
                 agentMenuShown: FfiConverterSequenceString.read(from),
                 agentMenuHidden: FfiConverterSequenceString.read(from),
-                agentMenuSeen: FfiConverterSequenceString.read(from)
+                agentMenuSeen: FfiConverterSequenceString.read(from),
+                closeWindowKeepsRunning: FfiConverterBool.read(from),
+                closeNoticeOff: FfiConverterBool.read(from)
             };
         }
         write(value: TypeName, into: RustBuffer): void {
@@ -41015,6 +41092,8 @@ const FfiConverterTypeAppSettings = (() => {
             FfiConverterSequenceString.write(value.agentMenuShown, into);
             FfiConverterSequenceString.write(value.agentMenuHidden, into);
             FfiConverterSequenceString.write(value.agentMenuSeen, into);
+            FfiConverterBool.write(value.closeWindowKeepsRunning, into);
+            FfiConverterBool.write(value.closeNoticeOff, into);
         }
         allocationSize(value: TypeName): number {
             return FfiConverterString.allocationSize(value.hotkey) +
@@ -41036,7 +41115,9 @@ const FfiConverterTypeAppSettings = (() => {
              FfiConverterTypeAppTipsState.allocationSize(value.tips) +
              FfiConverterSequenceString.allocationSize(value.agentMenuShown) +
              FfiConverterSequenceString.allocationSize(value.agentMenuHidden) +
-             FfiConverterSequenceString.allocationSize(value.agentMenuSeen);
+             FfiConverterSequenceString.allocationSize(value.agentMenuSeen) +
+             FfiConverterBool.allocationSize(value.closeWindowKeepsRunning) +
+             FfiConverterBool.allocationSize(value.closeNoticeOff);
 
         }
     };
@@ -41879,7 +41960,18 @@ export type AppSettingsInput = {
      * Settings, General's Show tips switch: tips are on
      * (`!AppSettings.tips.off`). A shell that does not say reads as on.
      */
-    showTips: boolean
+    showTips: boolean,
+    /**
+     * Settings, General's "When I close the window": the window's close
+     * button keeps Cua Spaces running in the background (none: no rows; a
+     * shell without a background service leaves them out).
+     */
+    closeWindowKeepsRunning?: boolean,
+    /**
+     * The notice that Cua Spaces keeps running is on (shown with the row
+     * above).
+     */
+    closeNotice: boolean
 }
 
 /**
@@ -41922,7 +42014,9 @@ const FfiConverterTypeAppSettingsInput = (() => {
                 autoConnect: FfiConverterOptionalBoolean.read(from),
                 overflow: FfiConverterOptionalBoolean.read(from),
                 runtimes: FfiConverterOptionalTypeAppRuntimesInput.read(from),
-                showTips: FfiConverterBool.read(from)
+                showTips: FfiConverterBool.read(from),
+                closeWindowKeepsRunning: FfiConverterOptionalBoolean.read(from),
+                closeNotice: FfiConverterBool.read(from)
             };
         }
         write(value: TypeName, into: RustBuffer): void {
@@ -41946,6 +42040,8 @@ const FfiConverterTypeAppSettingsInput = (() => {
             FfiConverterOptionalBoolean.write(value.overflow, into);
             FfiConverterOptionalTypeAppRuntimesInput.write(value.runtimes, into);
             FfiConverterBool.write(value.showTips, into);
+            FfiConverterOptionalBoolean.write(value.closeWindowKeepsRunning, into);
+            FfiConverterBool.write(value.closeNotice, into);
         }
         allocationSize(value: TypeName): number {
             return FfiConverterOptionalString.allocationSize(value.identity) +
@@ -41967,7 +42063,9 @@ const FfiConverterTypeAppSettingsInput = (() => {
              FfiConverterOptionalBoolean.allocationSize(value.autoConnect) +
              FfiConverterOptionalBoolean.allocationSize(value.overflow) +
              FfiConverterOptionalTypeAppRuntimesInput.allocationSize(value.runtimes) +
-             FfiConverterBool.allocationSize(value.showTips);
+             FfiConverterBool.allocationSize(value.showTips) +
+             FfiConverterOptionalBoolean.allocationSize(value.closeWindowKeepsRunning) +
+             FfiConverterBool.allocationSize(value.closeNotice);
 
         }
     };
@@ -45056,6 +45154,62 @@ const FfiConverterTypeAppStreamRowIcon = (() => {
     return new FFIConverter();
 })();
 
+export type AppStreamRowOrigin = {
+    /**
+     * The origin Space's id.
+     */
+    spaceId: string,
+    /**
+     * Its name.
+     */
+    name: string,
+    /**
+     * Its OS mark (`os-macos`, ...): the core's artwork (`notch.osIconSvg`).
+     */
+    osIcon: string
+}
+
+/**
+ * Generated factory for {@link AppStreamRowOrigin} record objects.
+ */
+export const AppStreamRowOrigin = (() => {
+    const defaults = () => ({
+    });
+    const create = (() => {
+        return uniffiCreateRecord<AppStreamRowOrigin, ReturnType<typeof defaults>>(defaults);
+    })();
+    return Object.freeze({
+        create,
+        new: create,
+        defaults: () => Object.freeze(defaults()) as Partial<AppStreamRowOrigin>,
+    });
+})();
+
+const FfiConverterTypeAppStreamRowOrigin = (() => {
+    type TypeName = AppStreamRowOrigin;
+    class FFIConverter extends AbstractFfiConverterByteArray<TypeName> {
+        read(from: RustBuffer): TypeName {
+            return {
+                spaceId: FfiConverterString.read(from),
+                name: FfiConverterString.read(from),
+                osIcon: FfiConverterString.read(from)
+            };
+        }
+        write(value: TypeName, into: RustBuffer): void {
+            FfiConverterString.write(value.spaceId, into);
+            FfiConverterString.write(value.name, into);
+            FfiConverterString.write(value.osIcon, into);
+        }
+        allocationSize(value: TypeName): number {
+            return FfiConverterString.allocationSize(value.spaceId) +
+             FfiConverterString.allocationSize(value.name) +
+             FfiConverterString.allocationSize(value.osIcon);
+
+        }
+    };
+    return new FFIConverter();
+})();
+
 export enum AppStreamRowActionId {
     /**
      * Picture in picture: the row's own stream in a floating panel.
@@ -45174,6 +45328,12 @@ export type AppStreamRow = {
      */
     icon: AppStreamRowIcon,
     /**
+     * For a window another Space shows here: the Space it lives in, drawn
+     * as its OS mark and name beside the label. Absent on a Space's own
+     * rows (older shells ignore it).
+     */
+    origin?: AppStreamRowOrigin,
+    /**
      * Icon buttons, in order.
      */
     actions: Array<AppStreamRowAction>
@@ -45206,6 +45366,7 @@ const FfiConverterTypeAppStreamRow = (() => {
                 help: FfiConverterString.read(from),
                 resolution: FfiConverterOptionalString.read(from),
                 icon: FfiConverterTypeAppStreamRowIcon.read(from),
+                origin: FfiConverterOptionalTypeAppStreamRowOrigin.read(from),
                 actions: FfiConverterSequenceTypeAppStreamRowAction.read(from)
             };
         }
@@ -45216,6 +45377,7 @@ const FfiConverterTypeAppStreamRow = (() => {
             FfiConverterString.write(value.help, into);
             FfiConverterOptionalString.write(value.resolution, into);
             FfiConverterTypeAppStreamRowIcon.write(value.icon, into);
+            FfiConverterOptionalTypeAppStreamRowOrigin.write(value.origin, into);
             FfiConverterSequenceTypeAppStreamRowAction.write(value.actions, into);
         }
         allocationSize(value: TypeName): number {
@@ -45225,6 +45387,7 @@ const FfiConverterTypeAppStreamRow = (() => {
              FfiConverterString.allocationSize(value.help) +
              FfiConverterOptionalString.allocationSize(value.resolution) +
              FfiConverterTypeAppStreamRowIcon.allocationSize(value.icon) +
+             FfiConverterOptionalTypeAppStreamRowOrigin.allocationSize(value.origin) +
              FfiConverterSequenceTypeAppStreamRowAction.allocationSize(value.actions);
 
         }
@@ -70849,6 +71012,9 @@ const FfiConverterOptionalTypeAppRelayUsageTeam = new FfiConverterOptional(FfiCo
 // FfiConverter for AppRelayAllowanceNotice | undefined
 const FfiConverterOptionalTypeAppRelayAllowanceNotice = new FfiConverterOptional(FfiConverterTypeAppRelayAllowanceNotice);
 
+// FfiConverter for AppRemoteWindowOrigin | undefined
+const FfiConverterOptionalTypeAppRemoteWindowOrigin = new FfiConverterOptional(FfiConverterTypeAppRemoteWindowOrigin);
+
 // FfiConverter for Array<AppRemoteWindow>
 const FfiConverterSequenceTypeAppRemoteWindow = new FfiConverterArray(FfiConverterTypeAppRemoteWindow);
 
@@ -70983,6 +71149,9 @@ const FfiConverterOptionalTypeAppSpaceSharingFacts = new FfiConverterOptional(Ff
 
 // FfiConverter for AppDriveCacheInput | undefined
 const FfiConverterOptionalTypeAppDriveCacheInput = new FfiConverterOptional(FfiConverterTypeAppDriveCacheInput);
+
+// FfiConverter for AppStreamRowOrigin | undefined
+const FfiConverterOptionalTypeAppStreamRowOrigin = new FfiConverterOptional(FfiConverterTypeAppStreamRowOrigin);
 
 // FfiConverter for Array<AppStreamRowAction>
 const FfiConverterSequenceTypeAppStreamRowAction = new FfiConverterArray(FfiConverterTypeAppStreamRowAction);
@@ -72834,6 +73003,7 @@ export default Object.freeze({
     FfiConverterTypeAppRememberedChoice,
     FfiConverterTypeAppRemoteWindow,
     FfiConverterTypeAppRemoteWindowGroup,
+    FfiConverterTypeAppRemoteWindowOrigin,
     FfiConverterTypeAppResourceEdit,
     FfiConverterTypeAppResourceEditView,
     FfiConverterTypeAppResourceField,
@@ -72939,6 +73109,7 @@ export default Object.freeze({
     FfiConverterTypeAppStreamRowActionId,
     FfiConverterTypeAppStreamRowIcon,
     FfiConverterTypeAppStreamRowKind,
+    FfiConverterTypeAppStreamRowOrigin,
     FfiConverterTypeAppStreamSection,
     FfiConverterTypeAppStreamSectionInput,
     FfiConverterTypeAppSuggestionGroup,

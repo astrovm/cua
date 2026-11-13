@@ -1675,6 +1675,48 @@
             "refused",
             "line"
           ]
+        },
+        "parts": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "part": {
+                "enum": [
+                  "mcp",
+                  "skills",
+                  "driver",
+                  "sign_in"
+                ]
+              },
+              "status": {
+                "enum": [
+                  "done",
+                  "needs_permission",
+                  "skipped",
+                  "failed"
+                ]
+              },
+              "where": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "line": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              }
+            },
+            "required": [
+              "part",
+              "status",
+              "where",
+              "line"
+            ]
+          }
         }
       },
       "required": [
@@ -5395,6 +5437,18 @@
               ]
             },
             "overflow": {
+              "type": [
+                "boolean",
+                "null"
+              ]
+            },
+            "closeWindowKeepsRunning": {
+              "type": [
+                "boolean",
+                "null"
+              ]
+            },
+            "closeNotice": {
               "type": [
                 "boolean",
                 "null"
@@ -10678,6 +10732,28 @@
         "expiresAt"
       ]
     },
+    "spaces.reach": {
+      "type": "object",
+      "properties": {
+        "reachable": {
+          "type": "boolean"
+        },
+        "listedOffline": {
+          "type": "boolean"
+        },
+        "reason": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "reachable",
+        "listedOffline",
+        "reason"
+      ]
+    },
     "spaces.rename": {
       "type": "null"
     },
@@ -15010,6 +15086,28 @@
     },
     "spaces.open": {
       "type": "null"
+    },
+    "spaces.reach": {
+      "type": "object",
+      "properties": {
+        "reachable": {
+          "type": "boolean"
+        },
+        "listedOffline": {
+          "type": "boolean"
+        },
+        "reason": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "reachable",
+        "listedOffline",
+        "reason"
+      ]
     },
     "spaces.rename": {
       "type": "object",

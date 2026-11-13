@@ -321,7 +321,7 @@ struct BridgeContractTests {
             ("notifications.list", [:]), ("notifications.markRead", ["ids": ["n1"]]), ("notifications.markAllRead", [:]),
             ("telemetry.track", ["signals": [["type": "step", "step": "app_launched", "ok": true]]]),
             ("telemetry.linkNotice", [:]), ("telemetry.acknowledgeLinkNotice", [:]), ("crashReporting.config", [:]),
-            ("spaces.usage", ["spaceId": space]), ("spaces.windows", ["spaceId": space]),
+            ("spaces.usage", ["spaceId": space]), ("spaces.reach", ["spaceId": space]), ("spaces.windows", ["spaceId": space]),
             ("spaces.thumbnail", ["spaceId": space]),
             ("spaces.droppedFiles", ["names": ["notes.txt"]]), ("spaces.chooseFiles", [:]),
             ("spaces.sendFiles", ["spaceId": space, "paths": ["/tmp/cua-contract-notes.txt"]]),
@@ -501,7 +501,7 @@ struct BridgeContractTests {
         let open = AppOpenWindow(windowId: 41, appId: "", appName: "Slack", windowTitle: "general", supported: true,
                                  bundlePath: "/Applications/Slack.app")
         let remote = AppRemoteWindow(id: "w-1", appName: "Firefox", title: "Mozilla Firefox", visible: true, appId: "firefox",
-                                     targetEpoch: 3, widthPx: 1280, heightPx: nil, pid: nil)
+                                     targetEpoch: 3, widthPx: 1280, heightPx: nil, pid: nil, origin: nil)
         let png = WebUIBridge.dataURL(Data([0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A]))
         return try [
             ("teleport.catalog", [BridgeValue.encode(entry)]),
